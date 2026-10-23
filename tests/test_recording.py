@@ -247,7 +247,7 @@ class RecordingTests(unittest.TestCase):
         self.assertEqual((summary["calls"], summary["results"], summary["pending"]), (count, count, 0))
         self.assertEqual(len({event["id"] for event in events}), count)
 
-    def test_async_cancellation_records_error_and_preserves_cancelled_error(self):
+    def test_async_task_cancellation_records_error_and_propagates_cancellation(self):
         inside_errors = []
 
         async def run():
@@ -265,14 +265,33 @@ class RecordingTests(unittest.TestCase):
                 task = asyncio.create_task(recorder.acall("blocked", {}, blocked))
                 await started.wait()
                 task.cancel("caller cancelled")
-                with self.assertRaises(asyncio.CancelledError) as raised:
+                with self.assertRaises(asyncio.CancelledError):
                     await task
-                self.assertIs(raised.exception, inside_errors[0])
+                self.assertTrue(task.cancelled())
+                self.assertEqual(len(inside_errors), 1)
+                self.assertEqual(inside_errors[0].args, ("caller cancelled",))
 
         asyncio.run(run())
         self.assertEqual(self.events()[1]["status"], "error")
         self.assertEqual(analyze_trace(self.events())["summary"]["pending"], 0)
         self.assertNotIn("caller cancelled", self.path.read_text(encoding="utf-8"))
+
+    def test_direct_async_cancellation_preserves_exception_identity(self):
+        original = asyncio.CancelledError("direct cancellation")
+
+        async def run():
+            async def cancel():
+                raise original
+
+            with TraceRecorder(self.path) as recorder:
+                with self.assertRaises(asyncio.CancelledError) as raised:
+                    await recorder.acall("cancel", {}, cancel)
+                self.assertIs(raised.exception, original)
+
+        asyncio.run(run())
+        self.assertEqual(self.events()[1]["status"], "error")
+        self.assertEqual(analyze_trace(self.events())["summary"]["pending"], 0)
+        self.assertNotIn("direct cancellation", self.path.read_text(encoding="utf-8"))
 
     def test_sync_call_rejects_and_closes_unstarted_coroutine(self):
         async def lookup():
