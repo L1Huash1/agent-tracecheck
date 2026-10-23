@@ -1,0 +1,4 @@
+{"type":"tool_call","id":"find-1","tool":"search_notes","arguments":{"query":"release checklist"},"timestamp_ms":0}
+{"type":"tool_call","id":"read-1","tool":"read_calendar","arguments":{"day":"2026-10-23"},"timestamp_ms":10}
+{"type":"tool_result","id":"read-1","status":"ok","timestamp_ms":40}
+{"type":"tool_result","id":"find-1","status":"ok","timestamp_ms":80}

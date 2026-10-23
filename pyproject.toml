@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-tracecheck"
+version = "0.1.0"
+description = "Offline diagnostics and budgets for agent tool-call traces"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "L1Huash1"}]
+keywords = ["agents", "tracing", "testing", "observability", "ci"]
+
+[project.scripts]
+agent-tracecheck = "agent_tracecheck.cli:main"
+
+[project.urls]
+Repository = "https://github.com/L1Huash1/agent-tracecheck"
+Issues = "https://github.com/L1Huash1/agent-tracecheck/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

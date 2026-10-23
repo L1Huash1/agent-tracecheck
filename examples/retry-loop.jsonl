@@ -1,0 +1,7 @@
+{"type":"tool_call","id":"find-1","tool":"search_notes","arguments":{"query":"release checklist"},"timestamp_ms":0}
+{"type":"tool_result","id":"find-1","status":"error","timestamp_ms":100}
+{"type":"tool_call","id":"find-2","tool":"search_notes","arguments":{"query":"release checklist"},"timestamp_ms":150}
+{"type":"tool_result","id":"find-2","status":"error","timestamp_ms":250}
+{"type":"tool_call","id":"find-3","tool":"search_notes","arguments":{"query":"release checklist"},"timestamp_ms":300}
+{"type":"tool_result","id":"find-3","status":"error","timestamp_ms":400}
+{"type":"tool_call","id":"save-1","tool":"save_summary","arguments":{"note_id":"demo"},"timestamp_ms":450}
