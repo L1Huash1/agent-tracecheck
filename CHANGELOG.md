@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-25
+
+- Point the missing-LangChain installation hint at the project checkout or extracted GitHub source release, instead of suggesting an unpublished package-index installation.
+
 ## 0.2.0 — 2026-10-25
 
 - Add an optional LangChain tool callback handler with local JSONL recording, concurrent run matching and argument filtering; the base CLI retains zero runtime dependencies.

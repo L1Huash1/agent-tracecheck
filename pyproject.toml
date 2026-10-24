@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-tracecheck"
-version = "0.2.0"
+version = "0.2.1"
 description = "Offline diagnostics and budgets for agent tool-call traces"
 readme = "README.md"
 requires-python = ">=3.10"
