@@ -4,6 +4,8 @@
 
 [中文说明](README.zh-CN.md) · [Trace format](docs/trace-format.md)
 
+[![Tests](https://github.com/L1Huash1/agent-tracecheck/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/L1Huash1/agent-tracecheck/actions/workflows/ci.yml)
+
 A small, offline diagnostic CLI for a normalized tool-call trace. Python 3.10+, zero runtime dependencies, no model calls and no trace uploads.
 
 It reads recorded events; it never replays or executes a tool. Repetition is a signal to inspect, not proof that an agent is stuck.
@@ -52,7 +54,7 @@ One JSON event per line:
 
 `arguments` and timestamps are optional. Event IDs connect each call to its result. See [the complete format and timing rules](docs/trace-format.md).
 
-This is a project-specific normalized format. Native OpenTelemetry, LangSmith, vendor SDK, and browser-agent exports are **not** parsed directly in v0.1. An adapter must map the fields first. Tool output bodies and hidden reasoning are not needed by this format.
+This is a project-specific normalized format. The optional [LangChain callback handler](docs/langchain.md) records tool calls into this format. Native OpenTelemetry, LangSmith, vendor SDK, and browser-agent export files are **not** parsed directly. Tool output bodies and hidden reasoning are not needed by this format.
 
 ## Exit codes and thresholds
 
@@ -66,6 +68,8 @@ This is a project-specific normalized format. Native OpenTelemetry, LangSmith, v
 | `--format` | text | `text`, `json`, or `markdown` |
 
 Exit **0** below the selected threshold, **1** when findings reach it, **2** on invalid input, arguments, or file errors. `--fail-on never` does not hide invalid input. `--output` writes to a file instead of stdout. Use `-` as the input path for stdin.
+
+`--output` rejects the input trace itself, including hard-link and symbolic-link aliases, with exit code **2** before writing a report. An unrelated existing report can be replaced.
 
 The error budget is zero by default, so even a recovered tool error can fail CI. Set a budget appropriate to the task. Repeated calls and pending results are warnings and do not fail the default threshold on their own.
 
@@ -96,6 +100,27 @@ The recorder creates a **new** file and refuses to overwrite an existing path. I
 For asynchronous tools, use `await recorder.acall("lookup", arguments, lambda: async_lookup(...))`. The callable must return an awaitable. Cancellation is recorded as an error and propagated to the caller. Synchronous `call` rejects awaitable results with a message directing you to `acall`; it does not cancel externally owned futures.
 
 For a reproducible local demonstration, run `python examples/record_demo.py demo-trace.jsonl`, then `agent-tracecheck demo-trace.jsonl`. The demonstration uses scripted dictionary lookups with intentional failures, not an LLM agent or a model benchmark.
+
+## Record LangChain tools
+
+Install the optional integration from this checkout:
+
+```sh
+python -m pip install ".[langchain]"
+python examples/langchain_demo.py langchain-trace.jsonl
+agent-tracecheck langchain-trace.jsonl --fail-on never
+```
+
+The example invokes actual local LangChain tools, including a deliberately failing tool; it uses no model or API key. The handler also works with asynchronous tool callbacks:
+
+```python
+from agent_tracecheck.integrations.langchain import LangChainTraceHandler
+
+with LangChainTraceHandler("trace.jsonl") as handler:
+    result = your_tool.invoke({"query": "hello"}, config={"callbacks": [handler]})
+```
+
+This records observed tool starts, results and errors. It does not record output bodies, exception details, model events or parent/child relationships. Arguments are recorded by default and may contain sensitive values; use `argument_filter` to redact a snapshot before writing. Finish all tools before closing the handler. See [supported versions, field mapping and handled-error limits](docs/langchain.md).
 
 ## Limitations
 

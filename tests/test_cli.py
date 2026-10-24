@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from agent_tracecheck.cli import render_report
+from agent_tracecheck import __version__
 from agent_tracecheck.core import analyze_trace
 
 
@@ -57,7 +58,7 @@ class CliTests(unittest.TestCase):
         completed = self.run_cli("--version")
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("agent-tracecheck", completed.stdout)
-        self.assertIn("0.1.0", completed.stdout)
+        self.assertIn(__version__, completed.stdout)
 
     def test_healthy_json_report_matches_core_report_exactly(self):
         completed = self.inspect("--format", "json")
@@ -161,6 +162,39 @@ class CliTests(unittest.TestCase):
     def test_output_cannot_overwrite_input(self):
         original = self.trace.read_bytes()
         self.assert_user_error(self.inspect("--output", self.trace))
+        self.assertEqual(self.trace.read_bytes(), original)
+
+    def test_output_hardlink_cannot_overwrite_input(self):
+        original = self.trace.read_bytes()
+        target = self.directory / "report.md"
+        try:
+            os.link(self.trace, target)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"Hard links unavailable: {error}")
+        completed = self.inspect("--format", "markdown", "--output", target)
+        self.assert_user_error(completed)
+        self.assertIn("must not overwrite", completed.stderr)
+        self.assertEqual(self.trace.read_bytes(), original)
+        self.assertEqual(target.read_bytes(), original)
+
+    def test_output_symlink_cannot_overwrite_input(self):
+        original = self.trace.read_bytes()
+        target = self.directory / "report.md"
+        try:
+            target.symlink_to(self.trace)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"Symbolic links unavailable: {error}")
+        self.assert_user_error(self.inspect("--output", target))
+        self.assertEqual(self.trace.read_bytes(), original)
+        self.assertTrue(target.is_symlink())
+
+    def test_unrelated_existing_report_can_be_replaced(self):
+        original = self.trace.read_bytes()
+        target = self.directory / "report.json"
+        target.write_text("previous report", encoding="utf-8")
+        completed = self.inspect("--format", "json", "--output", target)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(target.read_text(encoding="utf-8")), analyze_trace(self.events))
         self.assertEqual(self.trace.read_bytes(), original)
 
     def test_invalid_output_path_returns_diagnostic_without_traceback(self):

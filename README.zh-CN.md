@@ -4,9 +4,11 @@
 
 [English](README.md) · [数据格式](docs/trace-format.md)
 
+[![自动检查](https://github.com/L1Huash1/agent-tracecheck/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/L1Huash1/agent-tracecheck/actions/workflows/ci.yml)
+
 假设你让 Agent 查笔记并整理摘要，它连续三次用同样的参数查询、三次都失败，最后连保存结果也没有完成。只看最终回答，很难知道中间出了什么问题。
 
-这个工具读取已经保存的调用记录，列出这些值得检查的信号。它是离线诊断工具，需要 Python 3.10+，运行时零第三方依赖，不需要 API Key。
+这个工具读取已经保存的调用记录，列出这些值得检查的信号。它是离线诊断工具，需要 Python 3.10+，基础功能零第三方依赖，不需要 API Key。也可以选择安装 LangChain 接入组件，直接记录框架里的工具调用。
 
 ## 体验示例
 
@@ -35,18 +37,20 @@ agent-tracecheck trace.jsonl --fail-on warning
 
 ## 数据从哪里来
 
-首版使用自己的简化 JSONL 格式，每行一条记录：
+使用自己的简化 JSONL 格式，每行一条记录：
 
 ```jsonl
 {"type":"tool_call","id":"c1","tool":"lookup","arguments":{"query":"hello"},"timestamp_ms":0}
 {"type":"tool_result","id":"c1","status":"ok","timestamp_ms":25}
 ```
 
-调用和结果通过同一个 `id` 对应，可以处理并行调用。暂时没有直接导入各家 Agent 框架日志的功能，需要先把记录映射成此格式。示例数据是人工构造的，并非真实模型运行的性能证明。
+调用和结果通过同一个 `id` 对应，可以处理并行调用。可选的 LangChain 回调组件能直接记录成此格式；其他框架的原始日志仍需要自行映射。上面两个诊断示例是人工构造的，并非真实模型运行的性能证明。
 
 时间字段可选。如果只有部分事件带时间，报告中的时间跨度可能低估完整耗时；没有足够时间信息时，不会虚构耗时。重复调用也可能是任务本身需要，只表示值得核对。
 
 详细字段、退出码和能力边界见 [英文说明](README.md)。
+
+保存报告时，`--output` 不能指向输入记录本身，包括硬链接和符号链接；遇到这种情况会返回 **2**，保留输入数据。其他已存在的报告文件可以被替换。
 
 ## 记录自己的工具调用
 
@@ -61,5 +65,26 @@ with TraceRecorder("trace.jsonl") as recorder:
 记录器会新建文件，拒绝覆盖已有记录。它保存参数、时间及成功/失败状态，不保存工具返回内容或异常详情；参数中的敏感信息需要调用者自行处理。可以运行 `python examples/record_demo.py demo-trace.jsonl` 体验真实的本地函数调用记录，再交给 CLI 检查。演示是脚本化字典查询，不是大模型能力测试。
 
 异步工具使用 `await recorder.acall("lookup", arguments, lambda: async_lookup(...))`。它支持并发和取消传播；所有调用结束后再关闭记录器。
+
+## 接入 LangChain 工具
+
+在项目目录里安装可选组件，运行本地示例：
+
+```sh
+python -m pip install ".[langchain]"
+python examples/langchain_demo.py langchain-trace.jsonl
+agent-tracecheck langchain-trace.jsonl --fail-on never
+```
+
+示例会实际调用 LangChain 的本地工具，并故意触发一次失败，全程不用模型和 API Key。把回调组件传给自己的工具即可记录：
+
+```python
+from agent_tracecheck.integrations.langchain import LangChainTraceHandler
+
+with LangChainTraceHandler("trace.jsonl") as handler:
+    result = your_tool.invoke({"query": "你好"}, config={"callbacks": [handler]})
+```
+
+它记录观察到的工具调用、时间和成功/失败状态，不保存返回正文、异常详情或模型事件。默认会保存参数，可用 `argument_filter` 在写入前过滤敏感值。它不能保证覆盖完整 Agent 过程；被工具内部转成普通字符串的失败也可能无法识别。版本范围、字段映射与更多示例见 [接入说明](docs/langchain.md)。
 
 配套项目 [mcp-changecheck](https://github.com/L1Huash1/mcp-changecheck) 负责检查工具升级时接口有没有变；本项目负责检查实际记录中的工具调用过程。
