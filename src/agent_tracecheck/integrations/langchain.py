@@ -20,8 +20,9 @@ except ModuleNotFoundError as error:
     if error.name == "langchain_core":
         raise ImportError(
             'LangChain integration requires the optional dependency: '
-            'python -m pip install "agent-tracecheck[langchain]" '
-            '(from a checkout: python -m pip install ".[langchain]")'
+            'from the project checkout or extracted source release, run '
+            'python -m pip install ".[langchain]". '
+            'The project is distributed through GitHub source releases.'
         ) from error
     raise
 

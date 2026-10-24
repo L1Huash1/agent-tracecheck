@@ -24,7 +24,9 @@ assert agent_tracecheck.analyze_trace([])["summary"]["calls"] == 0
 try:
     import agent_tracecheck.integrations.langchain
 except ImportError as error:
-    assert "agent-tracecheck[langchain]" in str(error), str(error)
+    assert 'python -m pip install ".[langchain]"' in str(error), str(error)
+    assert 'source release' in str(error), str(error)
+    assert 'pip install "agent-tracecheck[langchain]"' not in str(error), str(error)
 else:
     raise AssertionError("optional integration imported without its framework")
 '''
