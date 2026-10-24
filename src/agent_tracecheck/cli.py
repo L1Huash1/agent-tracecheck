@@ -103,8 +103,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         trace_path = Path(args.trace) if args.trace != '-' else None
-        if args.output and trace_path and args.output.resolve() == trace_path.resolve():
-            raise TraceError('Output must not overwrite the input trace')
+        if args.output and trace_path:
+            same_path = args.output.resolve() == trace_path.resolve()
+            try:
+                same_file = args.output.samefile(trace_path)
+            except FileNotFoundError:
+                same_file = False
+            if same_path or same_file:
+                raise TraceError('Output must not overwrite the input trace')
         data = sys.stdin.read() if trace_path is None else trace_path.read_text(encoding='utf-8-sig')
         report = analyze_trace(
             load_trace(data), max_calls=args.max_calls, max_errors=args.max_errors,
